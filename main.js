@@ -1,6 +1,9 @@
 const electron = require('electron')
+
 // Module to control application life.
-const app = electron.app
+const app = electron.app;
+const {ipcMain} = require('electron')
+
 // Module to create native browser window.
 const BrowserWindow = electron.BrowserWindow
 
@@ -22,8 +25,8 @@ function createWindow () {
     slashes: true
   }))
 
-  // Open the DevTools.
-  // mainWindow.webContents.openDevTools()
+  //Open the DevTools.
+  mainWindow.webContents.openDevTools()
 
   // Emitted when the window is closed.
   mainWindow.on('closed', function () {
@@ -38,7 +41,6 @@ function createWindow () {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', createWindow)
-app.on('ready', thing)
 
 // Quit when all windows are closed.
 app.on('window-all-closed', function () {
@@ -57,29 +59,15 @@ app.on('activate', function () {
   }
 })
 
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.
+// Listen for async message from renderer process
+ipcMain.on('async', (event, arg) => {  
+    // Print 1
+    console.log(arg);
+    // Reply on async message from renderer process
+    event.sender.send('async-reply', 2);
+});
 
-function thing() {
-
-	const { requireTaskPool } = require('electron-remote');
-	const work = requireTaskPool(require.resolve('./work'));
-
-	console.log('start work');
-
-	// `work` will get executed concurrently in separate processes
-
-	// launch 3 processes of `work`
-	
-	work().then(result => {
-		console.log('work done, result:' + String(result));
-	});
-	
-	work().then(result => {
-		console.log('work done, result:' + String(result));
-	});
-	
-	work().then(result => {
-		console.log('work done, result:' + String(result));
-	});
+// Make method externally visible
+exports.pong = arg => {  
+    console.log(arg);
 }
