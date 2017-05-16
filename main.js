@@ -68,6 +68,5 @@ ipcMain.on('renderer-to-main', (event, arg) => {
 	console.log("Sending request: " + String(request_count) + " to DOM");
 	request_count++;
 	// Reply on async message from renderer process
-	event.sender.send('main-to-renderer-0', "done");
-	event.sender.send('main-to-renderer-1', "done");
+	event.sender.send('main-to-renderer', "done");
 });
