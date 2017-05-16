@@ -10,6 +10,8 @@ const BrowserWindow = electron.BrowserWindow
 const path = require('path')
 const url = require('url')
 
+var request_count = 0; 
+
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow
@@ -63,15 +65,9 @@ app.on('activate', function () {
 
 // Listen for async message from renderer process
 ipcMain.on('renderer-to-main', (event, arg) => {  
-	console.log("In Main: " + String(arg))
-	let value = parseInt(arg);
-	value = value + 1;
+	console.log("Sending request: " + String(request_count) + " to DOM");
+	request_count++;
 	// Reply on async message from renderer process
-	event.sender.send('main-to-renderer', String(value));
+	event.sender.send('main-to-renderer-0', "done");
+	event.sender.send('main-to-renderer-1', "done");
 });
-
-function thing()
-{
-	console.log("Sending first renderer");
-	ipcMain.send('main-to-renderer', 1);
-}
