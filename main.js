@@ -11,6 +11,12 @@ const path = require('path')
 const url = require('url')
 
 var request_count = 0; 
+const maxValue = 1000;
+var zeroCount = 0;
+var oneCount = maxValue;
+
+const { requireTaskPool } = require('electron-remote');
+const work = requireTaskPool(require.resolve('./work'));
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
@@ -22,9 +28,9 @@ function createWindow () {
 
 	// and load the index.html of the app.
 	mainWindow.loadURL(url.format({
-	pathname: path.join(__dirname, 'index.html'),
-	protocol: 'file:',
-	slashes: true
+		pathname: path.join(__dirname, 'index.html'),
+		protocol: 'file:',
+		slashes: true
 	}))
 
 	//Open the DevTools.
@@ -32,10 +38,10 @@ function createWindow () {
 
 	// Emitted when the window is closed.
 	mainWindow.on('closed', function () {
-	// Dereference the window object, usually you would store windows
-	// in an array if your app supports multi windows, this is the time
-	// when you should delete the corresponding element.
-	mainWindow = null
+		// Dereference the window object, usually you would store windows
+		// in an array if your app supports multi windows, this is the time
+		// when you should delete the corresponding element.
+		mainWindow = null
 	})
 }
 
@@ -43,8 +49,11 @@ function createWindow () {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', createWindow)
+app.on('ready', work)
 
-// app.on('ready', thing)
+ipcMain.on('worker-to-main', (event, arg) => {  
+	console.log("Got something from worker: " + String(arg));
+})
 
 // Quit when all windows are closed.
 app.on('window-all-closed', function () {
@@ -65,8 +74,27 @@ app.on('activate', function () {
 
 // Listen for async message from renderer process
 ipcMain.on('renderer-to-main', (event, arg) => {  
-	console.log("Sending request: " + String(request_count) + " to DOM");
+	
+	var displayJSON = {}; 
+	
+	zeroCount = zeroCount + 1;
+	if (zeroCount > maxValue)
+	{
+		zeroCount = 0;
+	}
+	
+	oneCount = oneCount - 1;
+	if (oneCount < 0)
+	{
+		oneCount = maxValue;
+	}
+	
+	displayJSON.zeroCount = zeroCount;
+	displayJSON.oneCount = oneCount;
+	
+	// console.log("Sending request: " + String(JSON.stringify(displayJSON)) + " to DOM");
 	request_count++;
+	
 	// Reply on async message from renderer process
-	event.sender.send('main-to-renderer', "done");
+	event.sender.send('main-to-renderer', JSON.stringify(displayJSON));
 });

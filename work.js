@@ -1,12 +1,13 @@
+const {ipcRenderer} = require('electron');
+ 
 function work() {
-  count = 0
-  let val = getRandomArbitrary(0, 10000);
-  setTimeout(function(){console.log("done")}, val);	// done should get shot into the void
-  return val;
+	var count = 0;
+	setInterval(send, 1);
 }
 
-function getRandomArbitrary(min, max) {
-  return Math.floor(Math.random() * (max - min)) + min;
+function send()
+{
+	ipcRenderer.send('worker-to-main', String(count++))
 }
 
 module.exports = work;
