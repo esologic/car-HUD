@@ -6,16 +6,15 @@ const {ipcRenderer} = require('electron');
 var main = require.resolve('./main')
 
 // Send async message to main process
-ipcRenderer.send('async', 1);
+ipcRenderer.send('renderer-to-main', 1);
 
 // Listen for async-reply message from main process
-ipcRenderer.on('async-reply', (event, arg) => {  
-    // Print 2
-    console.log(arg);
-    // Send sync message to main process
-    let mainValue = ipcRenderer.sendSync('sync', 3);
-    // Print 4
-    console.log(mainValue);
+ipcRenderer.on('main-to-renderer', (event, arg) => {  
+    console.log("In Renderer: " + String(arg))
+    let value = parseInt(arg);
+	value = value + 1;
+	// Reply on async message from renderer process
+    event.sender.send('renderer-to-main', String(value));
 });
 
 // Listen for main message

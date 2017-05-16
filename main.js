@@ -60,11 +60,12 @@ app.on('activate', function () {
 })
 
 // Listen for async message from renderer process
-ipcMain.on('async', (event, arg) => {  
-    // Print 1
-    console.log(arg);
-    // Reply on async message from renderer process
-    event.sender.send('async-reply', 2);
+ipcMain.on('renderer-to-main', (event, arg) => {  
+    console.log("In Main: " + String(arg))
+    let value = parseInt(arg);
+	value = value + 1;
+	// Reply on async message from renderer process
+    event.sender.send('main-to-renderer', String(value));
 });
 
 // Make method externally visible
