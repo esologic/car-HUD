@@ -69,18 +69,17 @@ function thing() {
 
 	// `work` will get executed concurrently in separate processes
 
+	// launch 3 processes of `work`
+	
 	work().then(result => {
-		console.log('work done');
-		console.log(result);
+		console.log('work done, result:' + String(result));
 	});
-
+	
 	work().then(result => {
-		console.log('work done');
-		console.log(result);
+		console.log('work done, result:' + String(result));
 	});
-
+	
 	work().then(result => {
-		console.log('work done');
-		console.log(result);
+		console.log('work done, result:' + String(result));
 	});
 }

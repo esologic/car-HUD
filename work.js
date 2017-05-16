@@ -1,16 +1,12 @@
-const crypto = require('crypto');
+function work() {
+  count = 0
+  let val = getRandomArbitrary(0, 10000);
+  setTimeout(function(){console.log("done")}, val);	// done should get shot into the void
+  return val;
+}
 
-// this usually takes a few seconds
-function work(limit = 100) {
-  let start = Date.now();
-  n = 0;
-  while(n < limit) {
-    crypto.randomBytes(1);
-    n++;
-  }
-  return {
-    timeElapsed: Date.now() - start,
-  };
+function getRandomArbitrary(min, max) {
+  return Math.floor(Math.random() * (max - min)) + min;
 }
 
 module.exports = work;
