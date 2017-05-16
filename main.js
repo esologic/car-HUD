@@ -38,6 +38,7 @@ function createWindow () {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', createWindow)
+app.on('ready', thing)
 
 // Quit when all windows are closed.
 app.on('window-all-closed', function () {
@@ -58,3 +59,28 @@ app.on('activate', function () {
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
+
+function thing() {
+
+	const { requireTaskPool } = require('electron-remote');
+	const work = requireTaskPool(require.resolve('./work'));
+
+	console.log('start work');
+
+	// `work` will get executed concurrently in separate processes
+
+	work().then(result => {
+		console.log('work done');
+		console.log(result);
+	});
+
+	work().then(result => {
+		console.log('work done');
+		console.log(result);
+	});
+
+	work().then(result => {
+		console.log('work done');
+		console.log(result);
+	});
+}
