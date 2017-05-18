@@ -15,8 +15,13 @@ const maxValue = 1000;
 var zeroCount = 0;
 var oneCount = maxValue;
 
-const { requireTaskPool } = require('electron-remote');
-const work = requireTaskPool(require.resolve('./work'));
+const fork = require('child_process').fork;
+
+const os = {
+	silent: false
+}
+
+const child = fork('./work.js', options=os);
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
@@ -45,14 +50,27 @@ function createWindow () {
 	})
 }
 
+function startWorker()
+{
+	child.send("start");
+	setTimeout(function(){child.send("get")}, 5000 );
+	setTimeout(function(){child.send("get")}, 2000 );
+	setTimeout(function(){child.send("get")}, 3000 );
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', createWindow)
-app.on('ready', work)
+app.on('ready', startWorker)
+
+child.on('message', (m) => {
+  console.log('PARENT got message:', m);
+});
 
 ipcMain.on('worker-to-main', (event, arg) => {  
 	console.log("Got something from worker: " + String(arg));
+	event.sender.send('main-to-worker', 1);
 })
 
 // Quit when all windows are closed.

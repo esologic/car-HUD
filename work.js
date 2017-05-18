@@ -1,13 +1,37 @@
-const {ipcRenderer} = require('electron');
- 
+var count = 0;
+
 function work() {
-	var count = 0;
-	setInterval(send, 1);
+	setInterval(c , 900);
 }
 
-function send()
+function c()
 {
-	ipcRenderer.send('worker-to-main', String(count++))
+	count++;
 }
 
-module.exports = work;
+function tx()
+{
+	console.log('CHILD sending message:', String(count))
+	process.send(String(count));
+}
+
+process.on('message', (m) => {
+  console.log('CHILD got message:', m);
+  switch(m)
+  {
+	case "start":
+		console.log("Starting");
+		work();
+		break;
+	case "get":
+		console.log("Starting");
+		tx();
+		break;
+  }
+});
+
+process.on('close', (code, signal) => {
+	console.log("Process Closed")
+	console.log(String(code));
+	console.log(String(signal));
+});
