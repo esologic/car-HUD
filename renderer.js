@@ -4,7 +4,42 @@
 
 const {ipcRenderer} = require('electron');
 
-ipcRenderer.send('renderer-to-main', 1);
+var Chart = require('chart.js')
+
+var ctx = document.getElementById("myChart");
+ctx.height = 100;
+
+var myChart = new Chart(ctx, {
+	type: 'bar',
+	data: {
+		labels: ["Red"],
+		datasets: [{
+			//label: '# of Votes',
+			data: [0],
+			backgroundColor: [
+				'rgba(255, 99, 132, 0.2)'
+			],
+			borderColor: [
+				'rgba(255,99,132,1)',
+			],
+			borderWidth: 1
+		}]
+	},
+	options: {
+		scales: {
+			yAxes: [{
+				ticks: {
+					beginAtZero:true,
+					max: 1000
+				}
+				
+			}]
+		},
+		legend: {
+			display: false
+		}
+	}
+});
 
 // Listen for async-reply message from main process
 ipcRenderer.on('main-to-renderer', (event, arg) => {  
@@ -17,6 +52,15 @@ ipcRenderer.on('main-to-renderer', (event, arg) => {
 	el0.innerHTML = String(displayJSON.zeroCount);
 	el1.innerHTML = String(displayJSON.oneCount);
 	
+	myChart.data.datasets[0].data[0] = displayJSON.zeroCount;
+	myChart.update();
+
+	var s = 'rgba(255,99,132,' + String(displayJSON.zeroCount/1000) + ')';
+	console.log(s);
+	myChart.data.datasets[0].backgroundColor[0] = s;
+	myChart.render();
+	
 	// Reply on async message from renderer process
     event.sender.send('renderer-to-main', 1);
 });
+

@@ -40,7 +40,7 @@ function createWindow ()
 	}))
 
 	//Open the DevTools.
-	mainWindow.webContents.openDevTools()
+	//mainWindow.webContents.openDevTools()
 
 	// Emitted when the window is closed.
 	mainWindow.on('closed', function () {
@@ -54,7 +54,7 @@ function createWindow ()
 function startWorker()
 {
 	hardware_process.send("start");
-	setInterval(function() {hardware_process.send("get")} , 100);
+	setInterval(function() {hardware_process.send("get")} , 10);
 }
 
 // This method will be called when Electron has finished
