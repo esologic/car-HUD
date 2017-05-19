@@ -18,16 +18,17 @@ var oneCount = maxValue;
 const fork = require('child_process').fork;
 
 const os = {
-	silent: false
+	silent: true
 }
 
-const child = fork('./work.js', options=os);
+const hardware_process = fork('./fake_work.js', options=os);
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow
 
-function createWindow () {
+function createWindow ()
+{
 	// Create the browser window.
 	mainWindow = new BrowserWindow({width: 800, height: 600})
 
@@ -52,10 +53,8 @@ function createWindow () {
 
 function startWorker()
 {
-	child.send("start");
-	setTimeout(function(){child.send("get")}, 5000 );
-	setTimeout(function(){child.send("get")}, 2000 );
-	setTimeout(function(){child.send("get")}, 3000 );
+	hardware_process.send("start");
+	setInterval(function() {hardware_process.send("get")} , 100);
 }
 
 // This method will be called when Electron has finished
@@ -64,17 +63,9 @@ function startWorker()
 app.on('ready', createWindow)
 app.on('ready', startWorker)
 
-child.on('message', (m) => {
-  console.log('PARENT got message:', m);
-});
-
-ipcMain.on('worker-to-main', (event, arg) => {  
-	console.log("Got something from worker: " + String(arg));
-	event.sender.send('main-to-worker', 1);
-})
-
 // Quit when all windows are closed.
-app.on('window-all-closed', function () {
+app.on('window-all-closed', function ()
+{
 	// On OS X it is common for applications and their menu bar
 	// to stay active until the user quits explicitly with Cmd + Q
 	if (process.platform !== 'darwin') {
@@ -82,7 +73,8 @@ app.on('window-all-closed', function () {
 	}
 })
 
-app.on('activate', function () {
+app.on('activate', function ()
+{
 	// On OS X it's common to re-create a window in the app when the
 	// dock icon is clicked and there are no other windows open.
 	if (mainWindow === null) {
@@ -91,28 +83,20 @@ app.on('activate', function () {
 })
 
 // Listen for async message from renderer process
-ipcMain.on('renderer-to-main', (event, arg) => {  
+ipcMain.on('renderer-to-main', (event, arg) =>
+{
 	
-	var displayJSON = {}; 
+});
+
+hardware_process.on('message', (m) =>
+{
+	var reportJSON = JSON.parse(String(m));
 	
-	zeroCount = zeroCount + 1;
-	if (zeroCount > maxValue)
-	{
-		zeroCount = 0;
-	}
+	var displayJSON = {};
 	
-	oneCount = oneCount - 1;
-	if (oneCount < 0)
-	{
-		oneCount = maxValue;
-	}
+	displayJSON.zeroCount = reportJSON.sensorZero;
+	displayJSON.oneCount = reportJSON.sensorOne;
 	
-	displayJSON.zeroCount = zeroCount;
-	displayJSON.oneCount = oneCount;
+	mainWindow.webContents.send('main-to-renderer', JSON.stringify(displayJSON));
 	
-	// console.log("Sending request: " + String(JSON.stringify(displayJSON)) + " to DOM");
-	request_count++;
-	
-	// Reply on async message from renderer process
-	event.sender.send('main-to-renderer', JSON.stringify(displayJSON));
 });
