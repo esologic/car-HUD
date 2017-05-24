@@ -1,3 +1,4 @@
+#define MESSAGESIZE 3
 #include <SoftwareSerial.h>
 
 SoftwareSerial rpiSerial(3, 2); // RX, TX
@@ -17,12 +18,43 @@ void setup() {
 }
 
 void loop() {
-  for (byte index = 0; index < 255; index++)
+
+  byte messageBuff[MESSAGESIZE]; 
+  
+  if (rpiSerial.available())
   {
-    rpiSerial.write(index);
-    Serial.print(index, HEX);
+    rpiSerial.readBytes(messageBuff, MESSAGESIZE);
+
+    intBytes reading;
+    
+    reading.i = analogRead(input_1);
+
+    byte CRC = intBytesCRC(reading);
+
+    rpiSerial.write(reading.bytes[0]);
+    rpiSerial.write(reading.bytes[1]);    
+    rpiSerial.write(CRC);
+
+    Serial.print("Byte1: ");
+    Serial.print(reading.bytes[0], HEX);
+    Serial.print(" Byte2: ");
+    Serial.print(reading.bytes[1], HEX); 
+    Serial.print(" Byte3: "); 
+    Serial.print(CRC, HEX);
+    Serial.print(" ");
+    Serial.print(reading.i, DEC);
+    Serial.print(" ");
+    Serial.print(CRC, DEC);
     Serial.println("");
+    
   }
+}
+
+byte intBytesCRC(intBytes ib)
+{
+
+  byte b = ib.bytes[0] + ib.bytes[1];
+  return b;
 }
 
 void debugInputs()

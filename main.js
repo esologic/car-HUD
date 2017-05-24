@@ -1,7 +1,5 @@
 const electron = require('electron')
 
-var SerialPort = require('serialport');
-
 // Module to control application life.
 const app = electron.app;
 const {ipcMain} = require('electron')

@@ -1,51 +1,51 @@
-/*
-var port = new SerialPort('COM8', {
-  parser: SerialPort.parsers.byteLength(1)
-});
+var SerialPort = require('serialport');
 
+var d = 0;
+var c = 0;
 
-// open errors will be emitted as an error event 
-port.on('error', function(err) {
-  console.log('Error: ', err.message);
-})
+function start()
+{	
+	var port = new SerialPort("/dev/ttyS0", {
+	  parser: SerialPort.parsers.byteLength(3)
+	});
+	
+	// From an array
+	var arr = new Uint8Array([0, 0, 0]);
 
-port.on('data', function (data) {
-  console.log('Data: ' + data);
-});
-*/
-
-var current_value = 0;
-var target_value = 0;
-
-function work()
-{
-	setInterval(increment , 10);
-}
-
-function increment()
-{
-	if (target_value == current_value)
-	{
-		console.log("Target reached!");
-		target_value = getRandomInt(0, 1000);
+	function error(err) {
+		if (err) {
+			return console.log('Error on write: ', err.message);
+		}
 	}
-	else if (target_value > current_value)
-	{
-		current_value = current_value + 1;
-	}
-	else if (target_value < current_value)
-	{
-		current_value = current_value - 1;
-	}
-	console.log("Current Value: " + String(current_value) + " Target: " + String(target_value));
+	
+	// open errors will be emitted as an error event 
+	port.on('error', error);
+
+	port.on('data', function (data) {
+		
+		d = data.readInt16LE(); // takes the first two bytes from the data buffer and turns them into a 16 bit int
+		c = data[2]; // this is the CRC
+		
+		console.log("Data: " + String(d)); 
+		console.log("CRC: " + String(c)); 
+	});
+
+	port.on('open', function() {
+		console.log("Port Opening")
+		port.write(arr, error);
+	});
+	
+	setInterval(function(){ 
+		port.write(arr, error);
+	}, 50);
 }
 
 function report()
 {
 	var reportJSON = {}; 
 	
-	reportJSON.sensorZero = current_value;
-	reportJSON.sensorOne = target_value;
+	reportJSON.sensorZero = d;
+	reportJSON.sensorOne = c;
 	
 	process.send(JSON.stringify(reportJSON));
 }
@@ -55,15 +55,15 @@ function getRandomInt(min, max) {
 }
 
 process.on('message', (m) => {
-  console.log('CHILD got message:', m);
+  // console.log('CHILD got message:', m);
   switch(m)
   {
 	case "start":
 		console.log("Starting");
-		work();
+		start(); 
 		break;
 	case "get":
-		console.log("Parent has requested count");
+		// console.log("Parent has requested count");
 		report();
 		break;
   }
