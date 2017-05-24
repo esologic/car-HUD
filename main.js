@@ -1,5 +1,7 @@
 const electron = require('electron')
 
+var SerialPort = require('serialport');
+
 // Module to control application life.
 const app = electron.app;
 const {ipcMain} = require('electron')
@@ -18,10 +20,10 @@ var oneCount = maxValue;
 const fork = require('child_process').fork;
 
 const os = {
-	silent: true
+	silent: false
 }
 
-const hardware_process = fork('./fake_work.js', options=os);
+const hardware_process = fork('./arduino_reader.js', options=os);
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
@@ -54,7 +56,7 @@ function createWindow ()
 function startWorker()
 {
 	hardware_process.send("start");
-	setInterval(function() {hardware_process.send("get")} , 10);
+	setInterval(function() {hardware_process.send("get")} , 100);
 }
 
 // This method will be called when Electron has finished

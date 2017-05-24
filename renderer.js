@@ -6,11 +6,9 @@ const {ipcRenderer} = require('electron');
 
 var Chart = require('chart.js')
 
-var ctx = document.getElementById("myChart");
-ctx.height = 100;
-
-var myChart = new Chart(ctx, {
+const config = {
 	type: 'bar',
+	
 	data: {
 		labels: ["Red"],
 		datasets: [{
@@ -25,6 +23,7 @@ var myChart = new Chart(ctx, {
 			borderWidth: 1
 		}]
 	},
+	
 	options: {
 		scales: {
 			yAxes: [{
@@ -35,11 +34,28 @@ var myChart = new Chart(ctx, {
 				
 			}]
 		},
+		
 		legend: {
 			display: false
+		},
+		
+		tooltips: {
+			enabled: false
 		}
-	}
-});
+	},
+	animation : false
+}
+
+var chart_element_names = ["channel_0", "channel_1", "channel_2", "channel_3", "channel_4", "channel_5", "channel_6", "channel_7"];
+var charts = [];
+
+for (var index = 0; index < chart_element_names.length; index++)
+{
+	var element = document.getElementById(chart_element_names[index]);
+	element.height = 600;
+	var chart = new Chart(element, config);
+	charts[index] = chart;	
+}
 
 // Listen for async-reply message from main process
 ipcRenderer.on('main-to-renderer', (event, arg) => {  
@@ -52,13 +68,13 @@ ipcRenderer.on('main-to-renderer', (event, arg) => {
 	el0.innerHTML = String(displayJSON.zeroCount);
 	el1.innerHTML = String(displayJSON.oneCount);
 	
-	myChart.data.datasets[0].data[0] = displayJSON.zeroCount;
-	myChart.update();
-
-	var s = 'rgba(255,99,132,' + String(displayJSON.zeroCount/1000) + ')';
-	console.log(s);
-	myChart.data.datasets[0].backgroundColor[0] = s;
-	myChart.render();
+	for (var i in charts) {
+		charts[i].data.datasets[0].data[0] = displayJSON.zeroCount;
+		var s = 'rgba(255,99,132,' + String(displayJSON.zeroCount/1000) + ')';
+		console.log(s);
+		charts[i].data.datasets[0].backgroundColor[0] = s;
+		charts[i].update();
+	}
 	
 	// Reply on async message from renderer process
     event.sender.send('renderer-to-main', 1);
