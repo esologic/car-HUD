@@ -61,19 +61,21 @@ for (var index = 0; index < chart_element_names.length; index++)
 ipcRenderer.on('main-to-renderer', (event, arg) => {  
 	
 	var displayJSON = JSON.parse(String(arg));
-	
+
 	let el0 = document.getElementById("el0");
 	let el1 = document.getElementById("el1");
 	
 	el0.innerHTML = String(displayJSON.zeroCount);
 	el1.innerHTML = String(displayJSON.oneCount);
 	
+	charts[1].data.datasets[0].data[0] = displayJSON.oneCount;
+	s = 'rgba(255,99,132,' + String(displayJSON.oneCount/1000) + ')';
+	charts[1].data.datasets[0].backgroundColor[0] = s;
+		
 	for (var i in charts) {
-		charts[i].data.datasets[0].data[0] = displayJSON.zeroCount;
-		var s = 'rgba(255,99,132,' + String(displayJSON.zeroCount/1000) + ')';
-		console.log(s);
-		charts[i].data.datasets[0].backgroundColor[0] = s;
 		charts[i].update();
+		var s = 'rgba(255,99,132,' + String(displayJSON.zeroCount/1000) + ')';
+		charts[i].data.datasets[0].backgroundColor[0] = s;
 	}
 	
 	// Reply on async message from renderer process

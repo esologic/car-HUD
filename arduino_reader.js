@@ -1,7 +1,12 @@
 var SerialPort = require('serialport');
 
-var d = 0;
-var c = 0;
+var reportJSON = {}; 
+
+reportJSON.sensorZero = 0;
+reportJSON.sensorOne = 0;
+
+var sensorNumber = 0;
+var maxSensorNumber = 1; 
 
 function start()
 {	
@@ -9,9 +14,6 @@ function start()
 	  parser: SerialPort.parsers.byteLength(3)
 	});
 	
-	// From an array
-	var arr = new Uint8Array([0, 0, 0]);
-
 	function error(err) {
 		if (err) {
 			return console.log('Error on write: ', err.message);
@@ -23,30 +25,43 @@ function start()
 
 	port.on('data', function (data) {
 		
-		d = data.readInt16LE(); // takes the first two bytes from the data buffer and turns them into a 16 bit int
-		c = data[2]; // this is the CRC
+		var d = data.readInt16LE(); // takes the first two bytes from the data buffer and turns them into a 16 bit int
+		
+		switch (sensorNumber)
+		{
+			case 0:
+				reportJSON.sensorZero = d;
+				break;
+			case 1:
+				reportJSON.sensorOne = d;
+				break;
+		}
+		
+		var c = data[2]; // this is the CRC
 		
 		console.log("Data: " + String(d)); 
 		console.log("CRC: " + String(c)); 
 	});
-
-	port.on('open', function() {
-		console.log("Port Opening")
-		port.write(arr, error);
-	});
 	
-	setInterval(function(){ 
+	setInterval(function(){
+		
+		// From an array
+		var arr = new Uint8Array([0, sensorNumber, 0]);
+		
 		port.write(arr, error);
-	}, 50);
+				
+		sensorNumber++;
+		
+		if (sensorNumber > maxSensorNumber)
+		{
+			sensorNumber = 0;
+		}
+		
+	}, 100);
 }
 
 function report()
-{
-	var reportJSON = {}; 
-	
-	reportJSON.sensorZero = d;
-	reportJSON.sensorOne = c;
-	
+{	
 	process.send(JSON.stringify(reportJSON));
 }
 

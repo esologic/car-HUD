@@ -3,14 +3,30 @@
 
 SoftwareSerial rpiSerial(3, 2); // RX, TX
 
-
 int input_0 = 0;
 int input_1 = 1;
 
-union intBytes{
+union message {
+    byte bytes[MESSAGESIZE];
+    struct {
+        byte M0;
+    };
+    struct {
+        byte unused0; // for offsetting DO NOT USE
+        byte M1;
+    };
+    struct {
+        byte unused1; // for offsetting DO NOT USE
+        byte unused2; // for offsetting DO NOT USE
+        byte CRC;
+    };
+};
+
+union intBytes {
   int i;
   byte bytes[2];
 };
+
 
 void setup() {
   Serial.begin(9600);
@@ -21,38 +37,50 @@ void loop() {
 
   byte messageBuff[MESSAGESIZE]; 
   
-  if (rpiSerial.available())
+  if (rpiSerial.available() >= MESSAGESIZE)
   {
-    rpiSerial.readBytes(messageBuff, MESSAGESIZE);
 
+    message masterMessage;
+    
+    rpiSerial.readBytes(masterMessage.bytes, MESSAGESIZE);
+        
+    Serial.print("M0: ");
+    Serial.print(masterMessage.M0); 
+    Serial.print(" M1: ");
+    Serial.print(masterMessage.M1);
+    Serial.print(" CRC: ");
+    Serial.print(masterMessage.CRC);  
+    Serial.println(" ");
+    
     intBytes reading;
     
-    reading.i = analogRead(input_1);
-
+    switch (masterMessage.M0)
+    {
+      case 0:
+ 
+        switch (masterMessage.M1)
+        {
+          case 0:
+            reading.i = analogRead(input_0);
+            break;
+          case 1:
+            reading.i = analogRead(input_1);
+            break;
+        }
+        
+        break;
+    }
+    
     byte CRC = intBytesCRC(reading);
 
     rpiSerial.write(reading.bytes[0]);
     rpiSerial.write(reading.bytes[1]);    
-    rpiSerial.write(CRC);
-
-    Serial.print("Byte1: ");
-    Serial.print(reading.bytes[0], HEX);
-    Serial.print(" Byte2: ");
-    Serial.print(reading.bytes[1], HEX); 
-    Serial.print(" Byte3: "); 
-    Serial.print(CRC, HEX);
-    Serial.print(" ");
-    Serial.print(reading.i, DEC);
-    Serial.print(" ");
-    Serial.print(CRC, DEC);
-    Serial.println("");
-    
+    rpiSerial.write(CRC);    
   }
 }
 
 byte intBytesCRC(intBytes ib)
 {
-
   byte b = ib.bytes[0] + ib.bytes[1];
   return b;
 }

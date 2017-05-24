@@ -17,18 +17,17 @@ var oneCount = maxValue;
 
 const fork = require('child_process').fork;
 
-const os = {
+const processConfig = {
 	silent: false
 }
 
-const hardware_process = fork('./arduino_reader.js', options=os);
+var hardware_process = fork('./arduino_reader.js', options=processConfig);
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow
 
-function createWindow ()
-{
+function createWindow () {
 	// Create the browser window.
 	mainWindow = new BrowserWindow({width: 800, height: 600})
 
@@ -51,8 +50,7 @@ function createWindow ()
 	})
 }
 
-function startWorker()
-{
+function startWorker() {
 	hardware_process.send("start");
 	setInterval(function() {hardware_process.send("get")} , 100);
 }
@@ -64,8 +62,7 @@ app.on('ready', createWindow)
 app.on('ready', startWorker)
 
 // Quit when all windows are closed.
-app.on('window-all-closed', function ()
-{
+app.on('window-all-closed', function () {
 	// On OS X it is common for applications and their menu bar
 	// to stay active until the user quits explicitly with Cmd + Q
 	if (process.platform !== 'darwin') {
@@ -73,8 +70,7 @@ app.on('window-all-closed', function ()
 	}
 })
 
-app.on('activate', function ()
-{
+app.on('activate', function () {
 	// On OS X it's common to re-create a window in the app when the
 	// dock icon is clicked and there are no other windows open.
 	if (mainWindow === null) {
@@ -83,13 +79,11 @@ app.on('activate', function ()
 })
 
 // Listen for async message from renderer process
-ipcMain.on('renderer-to-main', (event, arg) =>
-{
+ipcMain.on('renderer-to-main', (event, arg) => {
 	
 });
 
-hardware_process.on('message', (m) =>
-{
+hardware_process.on('message', (m) => {
 	var reportJSON = JSON.parse(String(m));
 	
 	var displayJSON = {};
