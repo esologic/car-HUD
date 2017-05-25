@@ -37,9 +37,11 @@ function createWindow () {
 		protocol: 'file:',
 		slashes: true
 	}))
+	
+	mainWindow.setFullScreen(true); // make the app full screen
 
 	//Open the DevTools.
-	//mainWindow.webContents.openDevTools()
+	mainWindow.webContents.openDevTools()
 
 	// Emitted when the window is closed.
 	mainWindow.on('closed', function () {
@@ -83,14 +85,29 @@ ipcMain.on('renderer-to-main', (event, arg) => {
 	
 });
 
-hardware_process.on('message', (m) => {
-	var reportJSON = JSON.parse(String(m));
+hardware_process.on('message', (m) => {	
+
+	// remap m from data to display format
 	
-	var displayJSON = {};
+	var reportJSON = JSON.parse(m);
 	
-	displayJSON.zeroCount = reportJSON.sensorZero;
-	displayJSON.oneCount = reportJSON.sensorOne;
+	console.log("Got : " + String(JSON.stringify(reportJSON)));
+	
+	
+	var displayJSON = {
+		chartValues: {
+			chart_0: reportJSON.sensorZero, 
+			chart_1: reportJSON.sensorOne,
+			chart_2: 0,
+			chart_3: 0,
+			chart_4: 0,
+			chart_5: 0,
+			chart_6: 0,
+			chart_7: 0
+		}
+	};
+	
+	console.log("Sending: " + String(JSON.stringify(displayJSON)));
 	
 	mainWindow.webContents.send('main-to-renderer', JSON.stringify(displayJSON));
-	
 });

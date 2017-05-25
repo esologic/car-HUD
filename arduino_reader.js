@@ -26,6 +26,7 @@ function start()
 	port.on('data', function (data) {
 		
 		var d = data.readInt16LE(); // takes the first two bytes from the data buffer and turns them into a 16 bit int
+		var c = data[2]; // this is the CRC
 		
 		switch (sensorNumber)
 		{
@@ -37,25 +38,20 @@ function start()
 				break;
 		}
 		
-		var c = data[2]; // this is the CRC
-		
-		console.log("Data: " + String(d)); 
-		console.log("CRC: " + String(c)); 
-	});
-	
-	setInterval(function(){
-		
-		// From an array
-		var arr = new Uint8Array([0, sensorNumber, 0]);
-		
-		port.write(arr, error);
-				
 		sensorNumber++;
-		
 		if (sensorNumber > maxSensorNumber)
 		{
 			sensorNumber = 0;
 		}
+		
+	});
+	
+	setInterval(function(){
+
+		// From an array
+		var arr = new Uint8Array([0, sensorNumber, 0]);
+		
+		port.write(arr, error);
 		
 	}, 100);
 }

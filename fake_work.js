@@ -1,6 +1,3 @@
-var current_value = 0;
-var target_value = 0;
-
 function work()
 {
 	setInterval(increment , 10);

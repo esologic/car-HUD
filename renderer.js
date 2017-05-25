@@ -6,7 +6,7 @@ const {ipcRenderer} = require('electron');
 
 var Chart = require('chart.js')
 
-const config = {
+var config = {
 	type: 'bar',
 	
 	data: {
@@ -49,12 +49,15 @@ const config = {
 var chart_element_names = ["channel_0", "channel_1", "channel_2", "channel_3", "channel_4", "channel_5", "channel_6", "channel_7"];
 var charts = [];
 
-for (var index = 0; index < chart_element_names.length; index++)
-{
-	var element = document.getElementById(chart_element_names[index]);
+for (var i in chart_element_names) {
+	var elementName = chart_element_names[i];
+	console.log("Creating Chart for: " + String(elementName))
+	var element = document.getElementById(elementName);
 	element.height = 600;
-	var chart = new Chart(element, config);
-	charts[index] = chart;	
+	var myConfig = JSON.parse(JSON.stringify(config)); // you have to do this, or they will all reference the same DOM canvas. 
+	var chart = new Chart(element, myConfig); 
+	console.log(chart)
+	charts[i] = chart;
 }
 
 // Listen for async-reply message from main process
@@ -62,23 +65,16 @@ ipcRenderer.on('main-to-renderer', (event, arg) => {
 	
 	var displayJSON = JSON.parse(String(arg));
 
-	let el0 = document.getElementById("el0");
-	let el1 = document.getElementById("el1");
+	charts[0].data.datasets[0].data[0] = displayJSON.chartValues.chart_0;
+	charts[1].data.datasets[0].data[0] = displayJSON.chartValues.chart_1;
 	
-	el0.innerHTML = String(displayJSON.zeroCount);
-	el1.innerHTML = String(displayJSON.oneCount);
+	charts[4].data.datasets[0].data[0] = 100;
+	charts[5].data.datasets[0].data[0] = 30;
 	
-	charts[1].data.datasets[0].data[0] = displayJSON.oneCount;
-	s = 'rgba(255,99,132,' + String(displayJSON.oneCount/1000) + ')';
-	charts[1].data.datasets[0].backgroundColor[0] = s;
-		
 	for (var i in charts) {
 		charts[i].update();
-		var s = 'rgba(255,99,132,' + String(displayJSON.zeroCount/1000) + ')';
-		charts[i].data.datasets[0].backgroundColor[0] = s;
 	}
 	
 	// Reply on async message from renderer process
     event.sender.send('renderer-to-main', 1);
 });
-
