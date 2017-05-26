@@ -29,7 +29,7 @@ let mainWindow
 
 function createWindow () {
 	// Create the browser window.
-	mainWindow = new BrowserWindow({width: 800, height: 600})
+	mainWindow = new BrowserWindow()
 
 	// and load the index.html of the app.
 	mainWindow.loadURL(url.format({
@@ -41,7 +41,7 @@ function createWindow () {
 	mainWindow.setFullScreen(true); // make the app full screen
 
 	//Open the DevTools.
-	mainWindow.webContents.openDevTools()
+	//mainWindow.webContents.openDevTools()
 
 	// Emitted when the window is closed.
 	mainWindow.on('closed', function () {
@@ -91,23 +91,24 @@ hardware_process.on('message', (m) => {
 	
 	var reportJSON = JSON.parse(m);
 	
-	console.log("Got : " + String(JSON.stringify(reportJSON)));
-	
+	// console.log("Got : " + String(JSON.stringify(reportJSON)));
 	
 	var displayJSON = {
 		chartValues: {
 			chart_0: reportJSON.sensorZero, 
 			chart_1: reportJSON.sensorOne,
-			chart_2: 0,
-			chart_3: 0,
-			chart_4: 0,
-			chart_5: 0,
-			chart_6: 0,
-			chart_7: 0
+			chart_2: reportJSON.sensorTwo,
+			chart_3: reportJSON.sensorThree,
+			chart_4: reportJSON.sensorFour,
+			chart_5: reportJSON.sensorFive
+		},
+		
+		switchValues: {
+			sw1: reportJSON.sensorSix
 		}
 	};
 	
-	console.log("Sending: " + String(JSON.stringify(displayJSON)));
+	// console.log("Sending: " + String(JSON.stringify(displayJSON)));
 	
 	mainWindow.webContents.send('main-to-renderer', JSON.stringify(displayJSON));
 });

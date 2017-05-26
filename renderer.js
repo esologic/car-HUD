@@ -44,9 +44,10 @@ var config = {
 		}
 	},
 	animation : false
+	
 }
 
-var chart_element_names = ["channel_0", "channel_1", "channel_2", "channel_3", "channel_4", "channel_5", "channel_6", "channel_7"];
+var chart_element_names = ["channel_0", "channel_1", "channel_2", "channel_3", "channel_4"];
 var charts = [];
 
 for (var i in chart_element_names) {
@@ -65,13 +66,22 @@ ipcRenderer.on('main-to-renderer', (event, arg) => {
 	
 	var displayJSON = JSON.parse(String(arg));
 
-	charts[0].data.datasets[0].data[0] = displayJSON.chartValues.chart_0;
-	charts[1].data.datasets[0].data[0] = displayJSON.chartValues.chart_1;
+	var valueNumber = 0;
+	var values = [];
 	
-	charts[4].data.datasets[0].data[0] = 100;
-	charts[5].data.datasets[0].data[0] = 30;
+	for (var key in displayJSON.chartValues) {
+		if (displayJSON.chartValues.hasOwnProperty(key)) {
+			var val = displayJSON.chartValues[key];
+			values[valueNumber] = val;
+			valueNumber++;
+		}	
+	}
+	
+	var element = document.getElementById("el2");
+	element.innerHTML = String(displayJSON.switchValues.sw1)
 	
 	for (var i in charts) {
+		charts[i].data.datasets[0].data[0] = values[i];
 		charts[i].update();
 	}
 	

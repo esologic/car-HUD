@@ -1,10 +1,14 @@
+#define NUMANALOGINPUTPINS 6
+#define NUMDIGITALINPUTPINS 1
+
 #define MESSAGESIZE 3
+
 #include <SoftwareSerial.h>
 
 SoftwareSerial rpiSerial(3, 2); // RX, TX
 
-int input_0 = 0;
-int input_1 = 1;
+int analogInputPins[NUMANALOGINPUTPINS] = {0, 1, 2, 3, 4, 5};
+int digitalInputPins[NUMDIGITALINPUTPINS] = {4}; 
 
 union message {
     byte bytes[MESSAGESIZE];
@@ -29,6 +33,12 @@ union intBytes {
 
 
 void setup() {
+
+  for (int index = 0; index < NUMDIGITALINPUTPINS; index++)
+  {
+    pinMode(digitalInputPins[index], INPUT);
+  }
+  
   Serial.begin(9600);
   rpiSerial.begin(9600);
 }
@@ -39,74 +49,78 @@ void loop() {
   
   if (rpiSerial.available() >= MESSAGESIZE)
   {
-
     message masterMessage;
     
     rpiSerial.readBytes(masterMessage.bytes, MESSAGESIZE);
-        
+
+    byte messageBs[2] = {masterMessage.M0, masterMessage.M1};
+
+    byte calcMasterCRC = CalcCRC(messageBs, 2);
+
+    /*
+    Serial.print("From Master: ");
     Serial.print("M0: ");
     Serial.print(masterMessage.M0); 
     Serial.print(" M1: ");
     Serial.print(masterMessage.M1);
     Serial.print(" CRC: ");
     Serial.print(masterMessage.CRC);  
-    Serial.println(" ");
-    
-    intBytes reading;
-    
-    switch (masterMessage.M0)
-    {
-      case 0:
+    Serial.print(" Calcd CRC: ");
+    Serial.print(calcMasterCRC);
+    Serial.print(" | ");
+    */ 
+
+    if (calcMasterCRC == masterMessage.CRC) {
  
-        switch (masterMessage.M1)
-        {
-          case 0:
-            reading.i = analogRead(input_0);
-            break;
-          case 1:
-            reading.i = analogRead(input_1);
-            break;
-        }
+      intBytes reading;
+      
+      switch (masterMessage.M0)
+      {
+        case 0: // read mode
+          if ((masterMessage.M1 >= 0) && (masterMessage.M1 < NUMANALOGINPUTPINS)) {
+              reading.i = analogRead(masterMessage.M1);
+          } else if (((masterMessage.M1 >= NUMANALOGINPUTPINS) && (masterMessage.M1 < NUMDIGITALINPUTPINS + NUMANALOGINPUTPINS))) {
+              Serial.println(digitalRead(4));
+              reading.i = digitalRead(4); // todo
+          }
+          break;
         
-        break;
+        case 1: // write mode
+          break;
+      }
+      
+      byte CRC = CalcCRC(reading.bytes, 2);
+  
+      rpiSerial.write(reading.bytes[0]);
+      rpiSerial.write(reading.bytes[1]);    
+      rpiSerial.write(CRC);
+
+      /*
+      Serial.print("To Master: ");
+      Serial.print("B0: ");
+      Serial.print(reading.bytes[0]); 
+      Serial.print(" B1: ");
+      Serial.print(reading.bytes[1]);
+      Serial.print(" CRC: ");
+      Serial.print(CRC);  
+  
+      Serial.println("");
+      */ 
+      
+    } else {
+      // Serial.println(" Bad master CRC");
     }
-    
-    byte CRC = intBytesCRC(reading);
-
-    rpiSerial.write(reading.bytes[0]);
-    rpiSerial.write(reading.bytes[1]);    
-    rpiSerial.write(CRC);    
   }
 }
 
-byte intBytesCRC(intBytes ib)
-{
-  byte b = ib.bytes[0] + ib.bytes[1];
-  return b;
-}
+byte CalcCRC(byte byteArray[], int numBytes) {
+  byte b = 0;
 
-void debugInputs()
-{
-  int pins[2] = {input_0, input_1}; 
-
-  for (int index = 0; index < 2; index++)
+  for (int index = 0; index < numBytes; index++)
   {
-    intBytes reading;
-    
-    reading.i = analogRead(pins[index]);
-
-    Serial.print("Reading ");
-    Serial.print(index);
-    Serial.print(" Int [");
-    Serial.print(reading.i);
-    Serial.print("] Byte 0 [");
-    Serial.print(reading.bytes[0], HEX);
-    Serial.print("] Byte 1 [");
-    Serial.print(reading.bytes[1], HEX);
-    Serial.print("] ");
+    b = b + byteArray[index];
   }
-  
-  Serial.println("");
+
+  return b;
   
 }
-
