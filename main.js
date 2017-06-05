@@ -54,7 +54,11 @@ function createWindow () {
 
 function startWorker() {
 	hardware_process.send("start");
-	setInterval(function() {hardware_process.send("get")} , 100);
+	setInterval(function() {
+		hardware_process.send("get")
+		console.log("Sending get")
+	} 
+	, 100);
 }
 
 // This method will be called when Electron has finished

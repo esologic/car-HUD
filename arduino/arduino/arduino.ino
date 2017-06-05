@@ -2,6 +2,7 @@
 
 #define NUMANALOGINPUTPINS 6
 #define NUMDIGITALINPUTPINS 1
+#define NUMINPUTPINS 7
 
 #define MESSAGESIZE 3
 
@@ -10,7 +11,10 @@
 SoftwareSerial rpiSerial(3, 2); // RX, TX
 
 int analogInputPins[NUMANALOGINPUTPINS] = {0, 1, 2, 3, 4, 5};
-int digitalInputPins[NUMDIGITALINPUTPINS] = {4}; 
+int digitalInputPins[NUMDIGITALINPUTPINS] = {4};
+int inputPins[NUMINPUTPINS] = {0, 1, 2, 3, 4, 5, 4};
+
+int (*readPtr[NUMINPUTPINS])(uint8_t) = {analogRead, analogRead, analogRead, analogRead, analogRead, analogRead, digitalRead}; // array of function pointers to the read function of the given pin
 
 union message {
     byte bytes[MESSAGESIZE];
@@ -33,14 +37,7 @@ union intBytes {
   byte bytes[2];
 };
 
-
 void setup() {
-
-  for (int index = 0; index < NUMDIGITALINPUTPINS; index++)
-  {
-    pinMode(digitalInputPins[index], INPUT);
-  }
-  
   Serial.begin(9600);
   rpiSerial.begin(9600);
 }
@@ -57,9 +54,9 @@ void loop() {
 
     byte incomingDataBytes[2] = {masterMessage.M0, masterMessage.M1};
 
-    byte calcMasterCRC = CalcCRC(incomingDataBytes, 2);
+    byte incomingMasterCRC = CalcCRC(incomingDataBytes, 2);
 
-    /*
+ 
     Serial.print("From Master: ");
     Serial.print("M0: ");
     Serial.print(masterMessage.M0); 
@@ -68,22 +65,18 @@ void loop() {
     Serial.print(" CRC: ");
     Serial.print(masterMessage.CRC);  
     Serial.print(" Calcd CRC: ");
-    Serial.print(calcMasterCRC);
+    Serial.print(incomingMasterCRC);
     Serial.print(" | ");
-    */ 
+    
 
-    if (calcMasterCRC == masterMessage.CRC) { // if the CRC from the master passes
+    if (incomingMasterCRC == masterMessage.CRC) { // if the CRC from the master passes
  
       intBytes reading;
       
       switch (masterMessage.M0)
       {
         case 0: // read mode -> Send values to master
-          if ((masterMessage.M1 >= 0) && (masterMessage.M1 < NUMANALOGINPUTPINS)) {
-              reading.i = analogRead(masterMessage.M1);
-          } else if (((masterMessage.M1 >= NUMANALOGINPUTPINS) && (masterMessage.M1 < NUMDIGITALINPUTPINS + NUMANALOGINPUTPINS))) {
-              reading.i = digitalRead(4); // todo
-          }
+          reading.i = readPtr[masterMessage.M1](inputPins[masterMessage.M1]);
           break;
         
         case 1: // write mode -> Set values on arduino
@@ -96,7 +89,7 @@ void loop() {
       rpiSerial.write(reading.bytes[1]);    
       rpiSerial.write(CRC);
 
-      /*
+      
       Serial.print("To Master: ");
       Serial.print("B0: ");
       Serial.print(reading.bytes[0]); 
@@ -105,11 +98,10 @@ void loop() {
       Serial.print(" CRC: ");
       Serial.print(CRC);  
       Serial.println("");
-      */
-       
+      
       
     } else { // Bad master CRC
-      
+      Serial.println("Bad CRC");
     }
   }
 }

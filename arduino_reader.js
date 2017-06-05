@@ -88,8 +88,10 @@ function processMessage(m) {
 					preCRC.push(CRC)
 					
 					port.write(preCRC, error);
-									
+					console.log("Serial written")				
 					readyToGet = false; 
+				} else {
+					console.log("Can't write! haven't gotten response yet")
 				}
 				
 			}, 10);
@@ -97,6 +99,7 @@ function processMessage(m) {
 
 		case "get":
 			process.send(JSON.stringify(reportJSON));
+			console.log("get got by child")
 			break;
 	}
 }
