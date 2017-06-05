@@ -19,87 +19,88 @@ function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-process.on('message', (m) => {
-  switch(m)
-  {
-	case "start":
-		console.log("Starting");
-		
-		var port = new SerialPort("/dev/ttyS0", {
-			  parser: SerialPort.parsers.byteLength(3)
+function processMessage(m) {
+	switch(m) {
+		case "start":
+			console.log("Starting");
+			
+			var port = new SerialPort("/dev/ttyS0", {
+				  parser: SerialPort.parsers.byteLength(3)
+				});
+				
+			function error(err) {
+				if (err) {
+					return console.log('Error on write: ', err.message);
+				}
+			}
+			
+			// open errors will be emitted as an error event 
+			port.on('error', error);
+
+			port.on('data', function (data) {
+				
+				var d = data.readInt16LE(); // takes the first two bytes from the data buffer and turns them into a 16 bit int
+				var c = data[2]; // this is the CRC
+				
+				switch (sensorNumber)
+				{
+					case 0:
+						reportJSON.sensorZero = d;
+						break;
+					case 1:
+						reportJSON.sensorOne = d;
+						break;
+					case 2:
+						reportJSON.sensorTwo = d;
+						break;
+					case 3:
+						reportJSON.sensorThree = d;
+						break;
+					case 4:
+						reportJSON.sensorFour = d;
+						break;
+					case 5:
+						reportJSON.sensorFive = d;
+						break;
+					case 6:
+						reportJSON.sensorSix = d;
+						break;
+				}
+				sensorNumber++;
+				if (sensorNumber > maxSensorNumber)
+				{
+					sensorNumber = 0;
+				}
+				readyToGet = true;
 			});
 			
-		function error(err) {
-			if (err) {
-				return console.log('Error on write: ', err.message);
-			}
-		}
-		
-		// open errors will be emitted as an error event 
-		port.on('error', error);
-
-		port.on('data', function (data) {
-			
-			var d = data.readInt16LE(); // takes the first two bytes from the data buffer and turns them into a 16 bit int
-			var c = data[2]; // this is the CRC
-			
-			switch (sensorNumber)
-			{
-				case 0:
-					reportJSON.sensorZero = d;
-					break;
-				case 1:
-					reportJSON.sensorOne = d;
-					break;
-				case 2:
-					reportJSON.sensorTwo = d;
-					break;
-				case 3:
-					reportJSON.sensorThree = d;
-					break;
-				case 4:
-					reportJSON.sensorFour = d;
-					break;
-				case 5:
-					reportJSON.sensorFive = d;
-					break;
-				case 6:
-					reportJSON.sensorSix = d;
-					break;
-			}
-			
-			sensorNumber++;
-			if (sensorNumber > maxSensorNumber)
-			{
-				sensorNumber = 0;
-			}
-			
-			readyToGet = true;
-		});
-		
-		setInterval(function(){
-			
-			if (readyToGet) {
-
-				var CRC = 0;
-				var preCRC = [0, sensorNumber];
+			setInterval(function(){
 				
-				for (var i in preCRC) {
-					CRC = (CRC + preCRC[i]) % 255; 
+				if (readyToGet) {
+
+					var CRC = 0;
+					var preCRC = [0, sensorNumber];
+					
+					for (var i in preCRC) {
+						CRC = (CRC + preCRC[i]) % 255; 
+					}
+					
+					preCRC.push(CRC)
+					
+					port.write(preCRC, error);
+									
+					readyToGet = false; 
 				}
 				
-				preCRC.push(CRC)
-				
-				port.write(preCRC, error);
-								
-				readyToGet = false; 
-			}
-			
-		}, 10);
-		break;
+			}, 10);
+			break;
 
-	case "get":
-		process.send(JSON.stringify(reportJSON));
-		break;
-	  }
+		case "get":
+			process.send(JSON.stringify(reportJSON));
+			break;
+	}
+}
+
+process.on('message', (m) => {
+	processMessage(m)
 });

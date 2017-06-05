@@ -1,3 +1,5 @@
+#define PATTERNPANIC 0
+
 #define NUMANALOGINPUTPINS 6
 #define NUMDIGITALINPUTPINS 1
 
@@ -53,9 +55,9 @@ void loop() {
     
     rpiSerial.readBytes(masterMessage.bytes, MESSAGESIZE);
 
-    byte messageBs[2] = {masterMessage.M0, masterMessage.M1};
+    byte incomingDataBytes[2] = {masterMessage.M0, masterMessage.M1};
 
-    byte calcMasterCRC = CalcCRC(messageBs, 2);
+    byte calcMasterCRC = CalcCRC(incomingDataBytes, 2);
 
     /*
     Serial.print("From Master: ");
@@ -70,22 +72,21 @@ void loop() {
     Serial.print(" | ");
     */ 
 
-    if (calcMasterCRC == masterMessage.CRC) {
+    if (calcMasterCRC == masterMessage.CRC) { // if the CRC from the master passes
  
       intBytes reading;
       
       switch (masterMessage.M0)
       {
-        case 0: // read mode
+        case 0: // read mode -> Send values to master
           if ((masterMessage.M1 >= 0) && (masterMessage.M1 < NUMANALOGINPUTPINS)) {
               reading.i = analogRead(masterMessage.M1);
           } else if (((masterMessage.M1 >= NUMANALOGINPUTPINS) && (masterMessage.M1 < NUMDIGITALINPUTPINS + NUMANALOGINPUTPINS))) {
-              Serial.println(digitalRead(4));
               reading.i = digitalRead(4); // todo
           }
           break;
         
-        case 1: // write mode
+        case 1: // write mode -> Set values on arduino
           break;
       }
       
@@ -103,24 +104,21 @@ void loop() {
       Serial.print(reading.bytes[1]);
       Serial.print(" CRC: ");
       Serial.print(CRC);  
-  
       Serial.println("");
-      */ 
+      */
+       
       
-    } else {
-      // Serial.println(" Bad master CRC");
+    } else { // Bad master CRC
+      
     }
   }
 }
 
 byte CalcCRC(byte byteArray[], int numBytes) {
   byte b = 0;
-
   for (int index = 0; index < numBytes; index++)
   {
     b = b + byteArray[index];
   }
-
   return b;
-  
 }
