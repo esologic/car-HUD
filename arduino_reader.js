@@ -14,6 +14,7 @@ var sensorNumber = 0; // the sensor number that this process is reading
 var maxSensorNumber = 6; // the max sensor number
 
 var readyToGet = true;
+var numResponseErrors = 0;
 
 function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -26,7 +27,7 @@ function processMessage(m) {
 			
 			var port = new SerialPort("/dev/ttyS0", {
 				  parser: SerialPort.parsers.byteLength(3)
-				});
+			});
 				
 			function error(err) {
 				if (err) {
@@ -42,8 +43,7 @@ function processMessage(m) {
 				var d = data.readInt16LE(); // takes the first two bytes from the data buffer and turns them into a 16 bit int
 				var c = data[2]; // this is the CRC
 				
-				switch (sensorNumber)
-				{
+				switch (sensorNumber) {
 					case 0:
 						reportJSON.sensorZero = d;
 						break;
@@ -67,15 +67,13 @@ function processMessage(m) {
 						break;
 				}
 				sensorNumber++;
-				if (sensorNumber > maxSensorNumber)
-				{
+				if (sensorNumber > maxSensorNumber) {
 					sensorNumber = 0;
 				}
 				readyToGet = true;
 			});
 			
-			setInterval(function(){
-				
+			setInterval(function() {
 				if (readyToGet) {
 
 					var CRC = 0;
@@ -87,11 +85,14 @@ function processMessage(m) {
 					
 					preCRC.push(CRC)
 					
-					port.write(preCRC, error);
-					console.log("Serial written")				
-					readyToGet = false; 
+					port.write(preCRC, error);				
+					readyToGet = false;
+					numResponseErrors = 0;
 				} else {
-					console.log("Can't write! haven't gotten response yet")
+					numResponseErrors++;
+					if (numResponseErrors > 100){
+						console.log("Can't write! haven't gotten response yet, this is a problem")
+					}
 				}
 				
 			}, 10);
@@ -99,7 +100,6 @@ function processMessage(m) {
 
 		case "get":
 			process.send(JSON.stringify(reportJSON));
-			console.log("get got by child")
 			break;
 	}
 }

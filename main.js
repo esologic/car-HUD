@@ -56,7 +56,7 @@ function startWorker() {
 	hardware_process.send("start");
 	setInterval(function() {
 		hardware_process.send("get")
-		console.log("Sending get")
+		console.log("Sending get to arduino process")
 	} 
 	, 100);
 }

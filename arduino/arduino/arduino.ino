@@ -1,34 +1,36 @@
 #define PATTERNPANIC 0
 
-#define NUMANALOGINPUTPINS 6
-#define NUMDIGITALINPUTPINS 1
-#define NUMINPUTPINS 7
-
 #define MESSAGESIZE 3
 
 #include <SoftwareSerial.h>
 
 SoftwareSerial rpiSerial(3, 2); // RX, TX
 
+#define NUMANALOGINPUTPINS 6
 int analogInputPins[NUMANALOGINPUTPINS] = {0, 1, 2, 3, 4, 5};
-int digitalInputPins[NUMDIGITALINPUTPINS] = {4};
-int inputPins[NUMINPUTPINS] = {0, 1, 2, 3, 4, 5, 4};
 
-int (*readPtr[NUMINPUTPINS])(uint8_t) = {analogRead, analogRead, analogRead, analogRead, analogRead, analogRead, digitalRead}; // array of function pointers to the read function of the given pin
+#define NUMDIGITALINPUTPINS 1
+int digitalInputPins[NUMDIGITALINPUTPINS] = {4};
+
+#define NUMINPUTPINS NUMANALOGINPUTPINS + NUMDIGITALINPUTPINS
+int inputPins[NUMINPUTPINS]; // will hold analogInputPins + digitalInputPins
+
+int (*readPtr[NUMINPUTPINS])(uint8_t); // will hold the read (digitalRead or analogRead or something else) function for a given pin
 
 union message {
-    byte bytes[MESSAGESIZE];
+    byte rawBytes[MESSAGESIZE]; // holds the two data bytes and the CRC
+    byte dataBytes[MESSAGESIZE-1]; // hold only the data bytes, without the CRC
     struct {
-        byte M0;
+        byte M0; // holds the first data byte
     };
     struct {
         byte unused0; // for offsetting DO NOT USE
-        byte M1;
+        byte M1; // holds the second data byte
     };
     struct {
         byte unused1; // for offsetting DO NOT USE
         byte unused2; // for offsetting DO NOT USE
-        byte CRC;
+        byte CRC; // holds the checksum
     };
 };
 
@@ -38,71 +40,67 @@ union intBytes {
 };
 
 void setup() {
+
   Serial.begin(9600);
   rpiSerial.begin(9600);
+
+  // combine the two arrays of pins
+  memcpy(inputPins, analogInputPins, NUMANALOGINPUTPINS * sizeof(int));
+  memcpy(inputPins + NUMANALOGINPUTPINS, digitalInputPins, NUMDIGITALINPUTPINS * sizeof(int));
+
+  for (int index = 0; index < NUMANALOGINPUTPINS; index++)
+  {
+    readPtr[index] = analogRead;
+  }
+
+  for (int index = 0; index < NUMDIGITALINPUTPINS; index++)
+  {
+    pinMode(digitalInputPins[index], INPUT);
+    readPtr[index + NUMANALOGINPUTPINS] = digitalRead;
+  }
 }
 
 void loop() {
-
-  byte messageBuff[MESSAGESIZE]; 
-  
-  if (rpiSerial.available() >= MESSAGESIZE)
-  {
-    message masterMessage;
     
-    rpiSerial.readBytes(masterMessage.bytes, MESSAGESIZE);
-
-    byte incomingDataBytes[2] = {masterMessage.M0, masterMessage.M1};
-
-    byte incomingMasterCRC = CalcCRC(incomingDataBytes, 2);
-
- 
-    Serial.print("From Master: ");
-    Serial.print("M0: ");
-    Serial.print(masterMessage.M0); 
-    Serial.print(" M1: ");
-    Serial.print(masterMessage.M1);
-    Serial.print(" CRC: ");
-    Serial.print(masterMessage.CRC);  
-    Serial.print(" Calcd CRC: ");
-    Serial.print(incomingMasterCRC);
-    Serial.print(" | ");
+  if (rpiSerial.available() >= MESSAGESIZE) { // wait for a full MESSAGE to arrive
     
+    message masterMessage = ReadMessage(rpiSerial);
+    
+    byte incomingMasterCRC = CalcCRC(masterMessage.dataBytes, MESSAGESIZE-1);
 
     if (incomingMasterCRC == masterMessage.CRC) { // if the CRC from the master passes
- 
+      
       intBytes reading;
       
-      switch (masterMessage.M0)
-      {
+      switch (masterMessage.M0) {
         case 0: // read mode -> Send values to master
           reading.i = readPtr[masterMessage.M1](inputPins[masterMessage.M1]);
           break;
-        
         case 1: // write mode -> Set values on arduino
           break;
       }
-      
-      byte CRC = CalcCRC(reading.bytes, 2);
-  
-      rpiSerial.write(reading.bytes[0]);
-      rpiSerial.write(reading.bytes[1]);    
-      rpiSerial.write(CRC);
 
-      
-      Serial.print("To Master: ");
-      Serial.print("B0: ");
-      Serial.print(reading.bytes[0]); 
-      Serial.print(" B1: ");
-      Serial.print(reading.bytes[1]);
-      Serial.print(" CRC: ");
-      Serial.print(CRC);  
-      Serial.println("");
-      
-      
+      message slaveMessage;
+      memcpy(slaveMessage.dataBytes, reading.bytes, MESSAGESIZE-1);
+      slaveMessage.CRC = CalcCRC(slaveMessage.dataBytes, MESSAGESIZE-1); 
+  
+      WriteMessage(rpiSerial, slaveMessage);
+            
     } else { // Bad master CRC
       Serial.println("Bad CRC");
     }
+  }
+}
+
+message ReadMessage(SoftwareSerial &port) {
+  message incomingMessage;
+  port.readBytes(incomingMessage.rawBytes, MESSAGESIZE); // read the raw bytes from the serial port into a message struct
+  return incomingMessage;
+}
+
+void WriteMessage(SoftwareSerial &port, message m) {
+  for (int index = 0; index < MESSAGESIZE; index++) {
+    port.write(m.rawBytes[index]);
   }
 }
 
