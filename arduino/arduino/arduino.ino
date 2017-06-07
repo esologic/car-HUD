@@ -57,9 +57,8 @@ void setup() {
   for (int index = 0; index < NUMANALOGINPUTPINS; index++){ readPtr[index] = analogRead; };
   for (int index = 0; index < NUMDIGITALINPUTPINS; index++){ pinMode(digitalInputPins[index], INPUT); readPtr[index + NUMANALOGINPUTPINS] = digitalRead; };
 
+  // populate the errorMessages array
   errorMessages[CRCFAIL] = {0x00, 0xFF, 0xFF};
-
-  printMsg(errorMessages[CRCFAIL]);  
 }
 
 
@@ -73,13 +72,17 @@ void loop() {
 
     if (incomingMasterCRC == masterMessage.CRC) { // if the CRC from the master passes
       
-      intBytes reading;
+      intBytes reading; // used to convert the int to a byte array for transmission
       
       switch (masterMessage.M0) {
         case 0: // read mode -> Send values to master
           reading.i = readPtr[masterMessage.M1](inputPins[masterMessage.M1]);
           break;
         case 1: // write mode -> Set values on arduino
+          break;
+        default:
+          Serial.println("Sending CRC Error - But CRC passed");
+          printMsg(errorMessages[CRCFAIL]);
           break;
       }
 
@@ -88,9 +91,15 @@ void loop() {
       slaveMessage.CRC = calcCRC(slaveMessage.dataBytes, MESSAGESIZE-1);
 
       writeMsg(rpiSerial, slaveMessage);
+
+      Serial.println("Sending Regular Message");
+      printMsg(slaveMessage);
             
     } else { // Bad master CRC
-      Serial.println("Sending CRC!");
+      Serial.println("Bad Master Message");
+      printMsg(masterMessage);
+      Serial.println("Sending CRC Error");
+      printMsg(errorMessages[CRCFAIL]);
       writeMsg(rpiSerial, errorMessages[CRCFAIL]);
     }
   }
