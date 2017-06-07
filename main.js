@@ -1,21 +1,17 @@
-const electron = require('electron')
+const electron = require('electron');
+const fork = require('child_process').fork;
 
 // Module to control application life.
 const app = electron.app;
-const {ipcMain} = require('electron')
+const {ipcMain} = require('electron');
 
 // Module to create native browser window.
-const BrowserWindow = electron.BrowserWindow
+const BrowserWindow = electron.BrowserWindow;
 
-const path = require('path')
-const url = require('url')
+const path = require('path');
+const url = require('url');
 
-var request_count = 0; 
-const maxValue = 1000;
-var zeroCount = 0;
-var oneCount = maxValue;
-
-const fork = require('child_process').fork;
+var arduinoProcessReady = true;
 
 const processConfig = {
 	silent: false
@@ -54,11 +50,14 @@ function createWindow () {
 
 function startWorker() {
 	hardware_process.send("start");
+	
 	setInterval(function() {
-		hardware_process.send("get")
-		console.log("Sending get to arduino process")
-	} 
-	, 100);
+		if (arduinoProcessReady) { 
+			// console.log("Main - Asking arduino_reader for data");
+			hardware_process.send("get");
+			arduinoProcessReady = false;
+		}
+	}, 100);
 }
 
 // This method will be called when Electron has finished
@@ -89,30 +88,29 @@ ipcMain.on('renderer-to-main', (event, arg) => {
 	
 });
 
+// Fires on new data from the arduino_reader process
 hardware_process.on('message', (m) => {	
 
-	// remap m from data to display format
+	// remap m from data from the arduino_reader to a display format
 	
 	var reportJSON = JSON.parse(m);
 	
-	// console.log("Got : " + String(JSON.stringify(reportJSON)));
-	
 	var displayJSON = {
 		chartValues: {
-			chart_0: reportJSON.sensorZero, 
-			chart_1: reportJSON.sensorOne,
-			chart_2: reportJSON.sensorTwo,
-			chart_3: reportJSON.sensorThree,
-			chart_4: reportJSON.sensorFour,
-			chart_5: reportJSON.sensorFive
+			chart_0: reportJSON.sensorValues[0], 
+			chart_1: reportJSON.sensorValues[1],
+			chart_2: reportJSON.sensorValues[2],
+			chart_3: reportJSON.sensorValues[3],
+			chart_4: reportJSON.sensorValues[4],
+			chart_5: reportJSON.sensorValues[5]
 		},
 		
 		switchValues: {
-			sw1: reportJSON.sensorSix
+			sw1: reportJSON.sensorValues[6]
 		}
 	};
 	
-	// console.log("Sending: " + String(JSON.stringify(displayJSON)));
-	
+	// send the remapped data to the renderer
 	mainWindow.webContents.send('main-to-renderer', JSON.stringify(displayJSON));
+	arduinoProcessReady = true;
 });

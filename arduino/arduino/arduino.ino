@@ -43,6 +43,7 @@ int (*readPtr[NUMINPUTPINS])(uint8_t); // will hold the read (digitalRead or ana
 
 message errorMessages[NUMERRORCODES]; // will hold all of the error messages unions
 
+
 void setup() {
 
   Serial.begin(9600);
@@ -58,9 +59,9 @@ void setup() {
 
   errorMessages[CRCFAIL] = {0x00, 0xFF, 0xFF};
 
-  printMsg(errorMessages[CRCFAIL]);
-  
+  printMsg(errorMessages[CRCFAIL]);  
 }
+
 
 void loop() {
     
@@ -84,8 +85,8 @@ void loop() {
 
       message slaveMessage;
       memcpy(slaveMessage.dataBytes, reading.bytes, MESSAGESIZE-1);
-      slaveMessage.CRC = calcCRC(slaveMessage.dataBytes, MESSAGESIZE-1); 
-  
+      slaveMessage.CRC = calcCRC(slaveMessage.dataBytes, MESSAGESIZE-1);
+
       writeMsg(rpiSerial, slaveMessage);
             
     } else { // Bad master CRC

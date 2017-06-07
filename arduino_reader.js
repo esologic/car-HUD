@@ -2,99 +2,96 @@ var SerialPort = require('serialport');
 
 var reportJSON = {}; // this is the JSON object that is to be sent back to the main process
 
-reportJSON.sensorZero = 0; 	// init the sensor to zero
-reportJSON.sensorOne = 0;	// init the sensor to zero
-reportJSON.sensorTwo = 0;	// init the sensor to zero
-reportJSON.sensorThree = 0;	// init the sensor to zero
-reportJSON.sensorFour = 0;	// init the sensor to zero
-reportJSON.sensorFive = 0;	// init the sensor to zero
-reportJSON.sensorSix = 0;	// init the sensor to zero
+reportJSON.sensorValues = [];
 
 var sensorNumber = 0; // the sensor number that this process is reading
 var maxSensorNumber = 6; // the max sensor number
 
-var readyToGet = true;
+var arduinoReady = true;
 var numResponseErrors = 0;
 
-function getRandomInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+var numTransmissions = 0;
+
+function calcCRC(preCRC) {
+	var CRC = 0;
+	for (var i in preCRC) {
+		CRC = (CRC + preCRC[i]) % 255; 
+	}
+	return CRC;
 }
 
+// process a message from the parent process
 function processMessage(m) {
 	switch(m) {
 		case "start":
-			console.log("Starting");
-			
 			var port = new SerialPort("/dev/ttyS0", {
 				  parser: SerialPort.parsers.byteLength(3)
 			});
 				
 			function error(err) {
 				if (err) {
-					return console.log('Error on write: ', err.message);
+					console.log('AR - Error on write: ' +  String(err.message));
 				}
 			}
+			
+			/* set up the handlers for port events */ 
 			
 			// open errors will be emitted as an error event 
 			port.on('error', error);
 
+			// fires whenever data arrives on the input buffer
 			port.on('data', function (data) {
 				
 				var d = data.readInt16LE(); // takes the first two bytes from the data buffer and turns them into a 16 bit int
-				var c = data[2]; // this is the CRC
+				var incomingCRC = data[2]; // this is the CRC
 				
-				switch (sensorNumber) {
-					case 0:
-						reportJSON.sensorZero = d;
-						break;
-					case 1:
-						reportJSON.sensorOne = d;
-						break;
-					case 2:
-						reportJSON.sensorTwo = d;
-						break;
-					case 3:
-						reportJSON.sensorThree = d;
-						break;
-					case 4:
-						reportJSON.sensorFour = d;
-						break;
-					case 5:
-						reportJSON.sensorFive = d;
-						break;
-					case 6:
-						reportJSON.sensorSix = d;
-						break;
+				var calculatedCRC = calcCRC([data[0], data[1]]);
+				
+				var badMasterSlave = (d == -256);
+				var badSlaveMaster = (calculatedCRC != incomingCRC);
+				
+				var goodCRC = true;
+				
+				if (badMasterSlave) {
+					console.log("AR - Bad Master->Slave CRC, retrying sensor read");
+					goodCRC = false;
+				} if (badSlaveMaster) {
+					console.log("AR - Bad Slave->Master CRC, retrying sensor read");
+					goodCRC = false;
+				} 
+				
+				if (goodCRC) {
+					reportJSON.sensorValues[sensorNumber] = d;					
+					sensorNumber++;
+					if (sensorNumber > maxSensorNumber) {
+						sensorNumber = 0;
+					}
 				}
-				sensorNumber++;
-				if (sensorNumber > maxSensorNumber) {
-					sensorNumber = 0;
-				}
-				readyToGet = true;
+				
+				// console.log("AR - Got a message back from the Arduino: [" + String(data[0]) + "," + String(data[1]) + "," + String(data[2]) + "]");
+
+				arduinoReady = true;
 			});
 			
+			// Start polling the arduino 
 			setInterval(function() {
-				if (readyToGet) {
-
-					var CRC = 0;
-					var preCRC = [0, sensorNumber];
+				if (arduinoReady) {
+					var messageBytes = [0, sensorNumber];
+					var CRC = calcCRC(messageBytes);
+										
+					messageBytes.push(CRC);
+					port.write(messageBytes, error);
 					
-					for (var i in preCRC) {
-						CRC = (CRC + preCRC[i]) % 255; 
-					}
+					// console.log("AR - Sending message to arduino: [" + String(messageBytes) + "]");					
 					
-					preCRC.push(CRC)
-					
-					port.write(preCRC, error);				
-					readyToGet = false;
 					numResponseErrors = 0;
+					arduinoReady = false;
 				} else {
 					numResponseErrors++;
 					if (numResponseErrors > 100){
 						console.log("Can't write! haven't gotten response yet, this is a problem")
 					}
 				}
-				
 			}, 10);
 			break;
 
