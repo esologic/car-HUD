@@ -107,7 +107,8 @@ hardware_process.on('message', (m) => {
 		
 		switchValues: {
 			sw1: reportJSON.sensorValues[6]
-		}
+		},
+		error: reportJSON.error
 	};
 	
 	// send the remapped data to the renderer
