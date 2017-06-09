@@ -1,7 +1,7 @@
 /* Start of error codes */
-#define NUMERRORCODES 1
-#define CRCFAIL 0
-#define RESETMODE 1
+#define NUMERRORCODES 2
+#define READY 0
+#define CRCFAIL 1
 
 #define MESSAGESIZE 3 // the number of bytes in a message
 
@@ -60,7 +60,7 @@ void setup() {
 
   // populate the errorMessages array
   errorMessages[CRCFAIL] = {0x00, 0xFF, 0xFF};
-  errorMessages[RESETMODE] = {0x00, 0xFE, 0xFE};
+  errorMessages[READY] = {0x00, 0xFE, 0xFE};
 }
 
 
@@ -70,8 +70,8 @@ void loop() {
     
     message masterMessage = readMsg(rpiSerial);
 
-    // Serial.print("Got message from master: ");
-    // printMsg(masterMessage);
+    //Serial.print("Got message from master: ");
+    //printMsg(masterMessage);
     
     byte incomingMasterCRC = calcCRC(masterMessage.dataBytes, MESSAGESIZE-1);
 
@@ -85,8 +85,13 @@ void loop() {
           break;
         case 1: // write mode -> Set values on arduino
           break;
+        case 2:
+          Serial.println("Sending Ready");
+          writeMsg(rpiSerial, errorMessages[READY]);
+          return true;
+          break;
         default:
-          // Serial.println("Sending CRC Error - But CRC passed");
+          Serial.println("Sending CRC Error - But CRC passed");
           writeMsg(rpiSerial, errorMessages[CRCFAIL]);
           break;
       }
@@ -97,26 +102,15 @@ void loop() {
 
       writeMsg(rpiSerial, slaveMessage);
 
-      // Serial.println("Sending Regular Message");
-      // printMsg(slaveMessage);
+      //Serial.println("Sending Regular Message");
+      //printMsg(slaveMessage);
             
     } else { // Bad master CRC
-      // Serial.print("Bad Master Message: ");
-      // printMsg(masterMessage);
-
-      byte recoveryArray[MESSAGESIZE] = {0xFF, 0xFF, 0xFF};
-
-      if (compareByteArrays(masterMessage.rawBytes, recoveryArray, MESSAGESIZE)) {
-        // Serial.print("Recovery Mode Detected, sending reset: ");
-        // printMsg(errorMessages[RESETMODE]);
-        writeMsg(rpiSerial, errorMessages[RESETMODE]);
-        drainBuffer(rpiSerial);
-      } else {
-        // Serial.print("CRC Fail, Sending CRC Error: ");
-        // printMsg(errorMessages[CRCFAIL]);
-        writeMsg(rpiSerial, errorMessages[CRCFAIL]);
-        drainBuffer(rpiSerial);
-      }
+      //Serial.print("Bad Master Message: ");
+      //printMsg(masterMessage);
+      
+      drainBuffer(rpiSerial);
+      writeMsg(rpiSerial, errorMessages[CRCFAIL]);
     }
   }
 }
