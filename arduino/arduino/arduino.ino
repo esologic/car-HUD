@@ -7,7 +7,7 @@
 
 #include <SoftwareSerial.h>
 
-SoftwareSerial rpiSerial(3, 2); // RX, TX
+SoftwareSerial rpiSerial(9, 8); // RX, TX
 
 union message {
     byte rawBytes[MESSAGESIZE]; // holds the two data bytes and the CRC
@@ -44,6 +44,15 @@ int (*readPtr[NUMINPUTPINS])(uint8_t); // will hold the read (digitalRead or ana
 
 message errorMessages[NUMERRORCODES]; // will hold all of the error messages unions
 
+int freqPin = 2;
+volatile int pushCount = 0;
+volatile unsigned long previousInterruptTime = 0;
+volatile unsigned long previousPulseTime = 0;
+#define NUMPULSES 10
+volatile unsigned long pulseTimes[NUMPULSES];
+int pulseTimeInsertPosition = 0;
+volatile int fullness = 0;
+
 
 void setup() {
 
@@ -61,17 +70,75 @@ void setup() {
   // populate the errorMessages array
   errorMessages[CRCFAIL] = {0x00, 0xFF, 0xFF};
   errorMessages[READY] = {0x00, 0xFE, 0xFE};
+
+  pinMode(freqPin, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(freqPin), newPulse, RISING);
+
+  Serial.println("reset");
 }
 
 
 void loop() {
-    
-  if (rpiSerial.available() >= MESSAGESIZE) { // wait for a full MESSAGE to arrive
-    
-    message masterMessage = readMsg(rpiSerial);
+  tryProcessMessage(rpiSerial, false); // try and process a message on the 
 
-    //Serial.print("Got message from master: ");
-    //printMsg(masterMessage);
+  unsigned long sum = 0;
+  int c = 0;
+  int values = false;
+  
+  for (int index = 0; index < fullness; index++) {
+    unsigned long t = pulseTimes[index];
+    sum = += t;
+    c++;
+    Serial.print(t);
+    Serial.print(" ");
+  }
+
+  Serial.print(" - "); 
+
+  unsigned long ave = sum/c;
+  Serial.print(ave);
+
+  Serial.println("");
+  
+}
+
+/* The following functions are Interrupt Service Routines */ 
+
+void newPulse(void) {
+  unsigned long interruptTime = millis();
+  if (interruptTime - previousInterruptTime > 150) {
+     calculatePulseTime();
+  }
+  previousInterruptTime = interruptTime;
+}
+
+void calculatePulseTime() {
+  unsigned long pulseTime = millis();
+  unsigned long delta = pulseTime - previousPulseTime;
+  pulseTimes[pulseTimeInsertPosition] = delta;
+  
+  pulseTimeInsertPosition++;
+  if (pulseTimeInsertPosition >= NUMPULSES) {
+    pulseTimeInsertPosition = 0;
+  }
+
+  if (fullness < NUMPULSES) {
+    fullness++;
+  }
+  
+  previousPulseTime = pulseTime;
+}
+
+bool tryProcessMessage(SoftwareSerial &port, bool debugMode) {
+  
+  if (port.available() >= MESSAGESIZE) { // wait until a full MESSAGE to arrive
+    
+    message masterMessage = readMsg(port);
+
+    if (debugMode) {
+      Serial.print("Got message from master: ");
+      printMsg(masterMessage);
+    }
     
     byte incomingMasterCRC = calcCRC(masterMessage.dataBytes, MESSAGESIZE-1);
 
@@ -86,13 +153,17 @@ void loop() {
         case 1: // write mode -> Set values on arduino
           break;
         case 2:
-          Serial.println("Sending Ready");
-          writeMsg(rpiSerial, errorMessages[READY]);
+          if (debugMode) {
+            Serial.println("Sending Ready");
+          }
+          writeMsg(port, errorMessages[READY]);
           return true;
           break;
         default:
-          Serial.println("Sending CRC Error - But CRC passed");
-          writeMsg(rpiSerial, errorMessages[CRCFAIL]);
+          if (debugMode) {
+            Serial.println("Sending CRC Error - But CRC passed");
+          }
+          writeMsg(port, errorMessages[CRCFAIL]);
           break;
       }
 
@@ -100,19 +171,26 @@ void loop() {
       memcpy(slaveMessage.dataBytes, reading.bytes, MESSAGESIZE-1);
       slaveMessage.CRC = calcCRC(slaveMessage.dataBytes, MESSAGESIZE-1);
 
-      writeMsg(rpiSerial, slaveMessage);
-
-      //Serial.println("Sending Regular Message");
-      //printMsg(slaveMessage);
+      writeMsg(port, slaveMessage);
+      
+      if (debugMode) {
+        Serial.println("Sending Regular Message");
+        printMsg(slaveMessage);
+      }
             
     } else { // Bad master CRC
-      //Serial.print("Bad Master Message: ");
-      //printMsg(masterMessage);
       
-      drainBuffer(rpiSerial);
-      writeMsg(rpiSerial, errorMessages[CRCFAIL]);
+      if (debugMode) {
+        Serial.print("Bad Master Message: ");
+        printMsg(masterMessage);
+      }
+      
+      drainBuffer(port);
+      writeMsg(port, errorMessages[CRCFAIL]);
     }
+    return true;
   }
+  return false; 
 }
 
 void drainBuffer(SoftwareSerial &port) {
@@ -122,22 +200,7 @@ void drainBuffer(SoftwareSerial &port) {
 }
 
 bool compareByteArrays(byte array1[], byte array2[], int arrayLength) {
-  /*
-  Serial.print("Comparing Arrays of len: ");
-  Serial.println(arrayLength);
-  */
   for (int index = 0; index < arrayLength; index++) {
-
-    /*
-    Serial.print("Item: ");
-    Serial.print(index);
-    Serial.print(" - ");
-    Serial.print(array1[index]);
-    Serial.print(" ");
-    Serial.print(array2[index]);
-    Serial.println("");
-    */
-    
     if (array1[index] != array2[index]) {
       return false;
     }
