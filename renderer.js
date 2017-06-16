@@ -47,7 +47,7 @@ var config = {
 	
 }
 
-var chart_element_names = ["channel_0", "channel_1", "channel_2", "channel_3", "channel_4"];
+var chart_element_names = ["channel_0", "channel_1", "channel_2", "channel_3", "channel_4", "channel_5"];
 var charts = [];
 
 for (var i in chart_element_names) {
@@ -89,6 +89,9 @@ ipcRenderer.on('main-to-renderer', (event, arg) => {
 			charts[i].data.datasets[0].data[0] = values[i];
 			charts[i].update();
 		}
+		
+		var element2 = document.getElementById("freq");
+		element2.innerHTML = String(displayJSON.freq)
 	}
 	// Reply on async message from renderer process
     event.sender.send('renderer-to-main', 1);

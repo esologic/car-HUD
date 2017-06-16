@@ -106,11 +106,14 @@ hardware_process.on('message', (m) => {
 		},
 		
 		switchValues: {
-			sw1: reportJSON.sensorValues[6]
+			sw1: reportJSON.sensorValues[6],
+			sw2: reportJSON.sensorValues[7]
 		},
-		error: reportJSON.error
+		error: reportJSON.error,
+		freq: reportJSON.sensorValues[8]
 	};
 	
+	console.log(JSON.stringify(displayJSON))
 	// send the remapped data to the renderer
 	mainWindow.webContents.send('main-to-renderer', JSON.stringify(displayJSON));
 	arduinoProcessReady = true;

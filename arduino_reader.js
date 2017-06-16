@@ -6,7 +6,7 @@ reportJSON.sensorValues = [];
 reportJSON.error = false;
 
 var sensorNumber = 0; // the sensor number that this process is reading
-var maxSensorNumber = 6; // the max sensor number
+var maxSensorNumber = 8; // the max sensor number, NOT zero indexed
 
 var startMode = true;
 var arduinoReady = true;

@@ -34,8 +34,8 @@ union intBytes {
 #define NUMANALOGINPUTPINS 6
 int analogInputPins[NUMANALOGINPUTPINS] = {0, 1, 2, 3, 4, 5};
 
-#define NUMDIGITALINPUTPINS 1
-int digitalInputPins[NUMDIGITALINPUTPINS] = {4};
+#define NUMDIGITALINPUTPINS 2
+int digitalInputPins[NUMDIGITALINPUTPINS] = {4, 5};
 
 #define NUMINPUTPINS NUMANALOGINPUTPINS + NUMDIGITALINPUTPINS
 int inputPins[NUMINPUTPINS]; // will hold analogInputPins + digitalInputPins
@@ -48,10 +48,11 @@ int freqPin = 2;
 volatile int pushCount = 0;
 volatile unsigned long previousInterruptTime = 0;
 volatile unsigned long previousPulseTime = 0;
-#define NUMPULSES 10
+#define NUMPULSES 3
 volatile unsigned long pulseTimes[NUMPULSES];
 int pulseTimeInsertPosition = 0;
 volatile int fullness = 0;
+int ave = 0;
 
 
 void setup() {
@@ -79,55 +80,22 @@ void setup() {
 
 
 void loop() {
-  tryProcessMessage(rpiSerial, false); // try and process a message on the 
+  tryProcessMessage(rpiSerial, true); // try and process a message on the 
 
   unsigned long sum = 0;
   int c = 0;
-  int values = false;
-  
+
   for (int index = 0; index < fullness; index++) {
     unsigned long t = pulseTimes[index];
-    sum = += t;
+    sum += t;
     c++;
-    Serial.print(t);
-    Serial.print(" ");
   }
-
-  Serial.print(" - "); 
-
-  unsigned long ave = sum/c;
-  Serial.print(ave);
-
-  Serial.println("");
-  
+    
+  if (fullness > 0) {
+    ave = (sum/c);
+  }
 }
 
-/* The following functions are Interrupt Service Routines */ 
-
-void newPulse(void) {
-  unsigned long interruptTime = millis();
-  if (interruptTime - previousInterruptTime > 150) {
-     calculatePulseTime();
-  }
-  previousInterruptTime = interruptTime;
-}
-
-void calculatePulseTime() {
-  unsigned long pulseTime = millis();
-  unsigned long delta = pulseTime - previousPulseTime;
-  pulseTimes[pulseTimeInsertPosition] = delta;
-  
-  pulseTimeInsertPosition++;
-  if (pulseTimeInsertPosition >= NUMPULSES) {
-    pulseTimeInsertPosition = 0;
-  }
-
-  if (fullness < NUMPULSES) {
-    fullness++;
-  }
-  
-  previousPulseTime = pulseTime;
-}
 
 bool tryProcessMessage(SoftwareSerial &port, bool debugMode) {
   
@@ -148,7 +116,12 @@ bool tryProcessMessage(SoftwareSerial &port, bool debugMode) {
       
       switch (masterMessage.M0) {
         case 0: // read mode -> Send values to master
-          reading.i = readPtr[masterMessage.M1](inputPins[masterMessage.M1]);
+          if ((masterMessage.M1 >= 0) && (masterMessage.M1 < NUMINPUTPINS)) {
+            reading.i = readPtr[masterMessage.M1](inputPins[masterMessage.M1]);
+          } else {
+            reading.i = ave;
+          }
+            
           break;
         case 1: // write mode -> Set values on arduino
           break;
@@ -175,6 +148,8 @@ bool tryProcessMessage(SoftwareSerial &port, bool debugMode) {
       
       if (debugMode) {
         Serial.println("Sending Regular Message");
+        Serial.print("Reading: ");
+        Serial.println(reading.i);
         printMsg(slaveMessage);
       }
             
@@ -238,4 +213,31 @@ byte calcCRC(byte byteArray[], int numBytes) {
     b = b + byteArray[index];
   }
   return b;
+}
+
+void calculatePulseTime() {
+  unsigned long pulseTime = millis();
+  unsigned long delta = pulseTime - previousPulseTime;
+  pulseTimes[pulseTimeInsertPosition] = delta;
+
+  pulseTimeInsertPosition++;
+  if (pulseTimeInsertPosition >= NUMPULSES) {
+    pulseTimeInsertPosition = 0;
+  }
+
+  if (fullness < NUMPULSES) {
+    fullness++;
+  }
+  
+  previousPulseTime = pulseTime;
+}
+
+/* The following functions are Interrupt Service Routines */ 
+
+void newPulse(void) { // this is to debounce the pulses, may not be essential
+  unsigned long interruptTime = millis();
+  if (interruptTime - previousInterruptTime > 10) {
+     calculatePulseTime();
+  }
+  previousInterruptTime = interruptTime;
 }
